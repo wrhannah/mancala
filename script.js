@@ -12,11 +12,13 @@ let connection = null;
 let myPlayerIndex = null;
 let audioContext = null;
 let lastMyTurnState = null;
+let lastMoveSource = null;
+let lastMoveTargets = new Set();
 
 function createInitialState() {
   return { board: [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0], currentPlayer: 0, winner: null };
 }
-function ownedPitIndexes(playerIndex) { return playerIndex === 0 ? [0,1,2,3,4,5] : [7,8,9,10,11,12]; }
+function ownedPitIndexes(playerIndex) { return playerIndex === 0 ? [0, 1, 2, 3, 4, 5] : [7, 8, 9, 10, 11, 12]; }
 function storeIndex(playerIndex) { return playerIndex === 0 ? 6 : 13; }
 function opponentStoreIndex(playerIndex) { return playerIndex === 0 ? 13 : 6; }
 function isMyTurn() { return myPlayerIndex != null && state.currentPlayer === myPlayerIndex && !state.winner; }
@@ -37,8 +39,10 @@ function playTurnDing() {
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(0.2, now + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
-    oscillator.connect(gain); gain.connect(audioContext.destination);
-    oscillator.start(now); oscillator.stop(now + 0.25);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.25);
   } catch (_) {}
 }
 function startTurnFlash() { document.body.classList.add('turn-flash'); }
@@ -48,7 +52,8 @@ function speakTurnAlert() {
   try {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(`It's your turn, ${PLAYER_NAME[myPlayerIndex]}`);
-    utterance.rate = 1.1; window.speechSynthesis.speak(utterance);
+    utterance.rate = 1.1;
+    window.speechSynthesis.speak(utterance);
   } catch (_) {}
 }
 function triggerTurnAlert() { playTurnDing(); startTurnFlash(); speakTurnAlert(); }
@@ -59,6 +64,7 @@ function applyMove(gameState, pitIndex) {
   if (!ownedPitIndexes(current).includes(pitIndex) || gameState.board[pitIndex] <= 0) return null;
 
   const board = [...gameState.board];
+  const touched = [];
   let stones = board[pitIndex];
   board[pitIndex] = 0;
   let i = pitIndex;
@@ -67,6 +73,7 @@ function applyMove(gameState, pitIndex) {
     i = (i + 1) % 14;
     if (i === opponentStoreIndex(current)) continue;
     board[i] += 1;
+    touched.push(i);
     stones -= 1;
   }
 
@@ -75,12 +82,14 @@ function applyMove(gameState, pitIndex) {
     board[ownStore] += board[12 - i] + 1;
     board[12 - i] = 0;
     board[i] = 0;
+    touched.push(ownStore);
   }
 
   const next = {
     board,
     currentPlayer: i === storeIndex(current) ? current : 1 - current,
-    winner: null
+    winner: null,
+    _lastMove: { source: pitIndex, targets: [...new Set(touched)] }
   };
 
   const p1Empty = ownedPitIndexes(0).every((idx) => next.board[idx] === 0);
@@ -121,21 +130,45 @@ function drawBoard() {
   const topRow = [12, 11, 10, 9, 8, 7];
   const bottomRow = [0, 1, 2, 3, 4, 5];
 
-  const dadStore = makeStore(13, 'Dad Store'); dadStore.style.gridColumn = '1';
-  const walterStore = makeStore(6, 'Walter Store'); walterStore.style.gridColumn = '8';
+  const dadStore = makeStore(13, 'Dad Store');
+  dadStore.style.gridColumn = '1';
+  const walterStore = makeStore(6, 'Walter Store');
+  walterStore.style.gridColumn = '8';
 
   boardEl.appendChild(dadStore);
   for (let col = 0; col < topRow.length; col += 1) boardEl.appendChild(makePit(topRow[col], col + 2, 1));
   for (let col = 0; col < bottomRow.length; col += 1) boardEl.appendChild(makePit(bottomRow[col], col + 2, 2));
   boardEl.appendChild(walterStore);
+
   updateStatus();
+}
+
+function addStonesVisual(container, count) {
+  const stonesWrap = document.createElement('div');
+  stonesWrap.className = 'stones';
+  const visibleCount = Math.min(count, 12);
+  for (let i = 0; i < visibleCount; i += 1) {
+    const stone = document.createElement('span');
+    stone.className = 'stone';
+    stone.style.animationDelay = `${i * 25}ms`;
+    stonesWrap.appendChild(stone);
+  }
+  container.appendChild(stonesWrap);
 }
 
 function makeStore(index, label) {
   const el = document.createElement('button');
   el.className = 'store';
   el.disabled = true;
-  el.textContent = `${label}: ${state.board[index]}`;
+  el.setAttribute('aria-label', `${label}: ${state.board[index]} stones`);
+
+  const text = document.createElement('div');
+  text.className = 'pit-label';
+  text.textContent = `${label}: ${state.board[index]}`;
+  el.appendChild(text);
+  addStonesVisual(el, state.board[index]);
+
+  if (lastMoveTargets.has(index)) el.classList.add('move-target');
   return el;
 }
 
@@ -144,7 +177,13 @@ function makePit(index, col, row) {
   el.className = 'pit';
   el.style.gridColumn = String(col);
   el.style.gridRow = String(row);
-  el.textContent = String(state.board[index]);
+  el.setAttribute('aria-label', `Pit ${index} with ${state.board[index]} stones`);
+
+  const text = document.createElement('div');
+  text.className = 'pit-label';
+  text.textContent = String(state.board[index]);
+  el.appendChild(text);
+  addStonesVisual(el, state.board[index]);
 
   const mine = myPlayerIndex === 0 ? index <= 5 : myPlayerIndex === 1 ? (index >= 7 && index <= 12) : false;
   const playable = mine && isMyTurn() && state.board[index] > 0;
@@ -154,18 +193,33 @@ function makePit(index, col, row) {
       const next = applyMove(state, index);
       if (!next) return;
       state = next;
+      syncMoveHighlights();
       drawBoard();
       sendMessage({ type: 'state', state });
     });
   }
 
+  if (lastMoveSource === index) el.classList.add('move-source');
+  if (lastMoveTargets.has(index)) el.classList.add('move-target');
   if (state.currentPlayer === 0 && index <= 5) el.classList.add('active');
   if (state.currentPlayer === 1 && index >= 7 && index <= 12) el.classList.add('active');
   return el;
 }
 
+function syncMoveHighlights() {
+  const move = state._lastMove;
+  lastMoveSource = move?.source ?? null;
+  lastMoveTargets = new Set(move?.targets || []);
+}
+
+function clearMoveHighlights() {
+  lastMoveSource = null;
+  lastMoveTargets = new Set();
+}
+
 function restartGame(sendRestart = false) {
   state = createInitialState();
+  clearMoveHighlights();
   lastMyTurnState = null;
   stopTurnFlash();
   drawBoard();
@@ -194,6 +248,7 @@ function bindConnectionHandlers(conn) {
   connection.on('data', (data) => {
     if (data.type === 'state' || data.type === 'restart') {
       state = data.state;
+      syncMoveHighlights();
       lastMyTurnState = null;
       drawBoard();
     }
@@ -267,5 +322,6 @@ document.addEventListener('keydown', ensureAudioContext);
 
 restartBtn.style.display = 'none';
 restartBtn.disabled = true;
+clearMoveHighlights();
 drawBoard();
 autoJoinGame();
