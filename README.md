@@ -1,28 +1,23 @@
-# Walter vs Dad Mancala
+# Walter vs Dad Mancala (Peer-to-Peer)
 
-This version uses the same architecture style as a typical local multiplayer checkers app:
-- Node server keeps shared game state in memory.
-- Browser clients join as `Walter` or `Dad`.
-- Clients receive live updates over Server-Sent Events (SSE).
+This app is rearchitected to match the checkers style you shared:
+
+- Static `index.html` + `script.js` + `style.css`
+- PeerJS auto-role assignment with no codes
+  - First opener becomes **Walter** (host)
+  - Second opener becomes **Dad** (joiner)
+- Direct browser-to-browser sync (no Firebase)
 
 ## Run locally
 
 ```bash
-npm start
+python3 -m http.server 4173
 ```
 
-Open `http://localhost:3000` on two phones on the same network.
-
-## API
-
-- `GET /api/state`
-- `POST /api/join` with `{ "name": "Walter" | "Dad" }`
-- `POST /api/move` with `{ "playerName": "Walter" | "Dad", "pitIndex": number }`
-- `POST /api/reset`
-- `GET /api/stream` for live state updates (SSE)
+Open `http://<your-lan-ip>:4173/` on both phones.
 
 ## Notes
 
-- No login codes or accounts.
-- Seats are fixed to `Walter` and `Dad`.
-- Game state resets when server restarts.
+- No accounts and no login codes.
+- Restart button is available to Dad (same control pattern as the sample).
+- Existing Node game logic/tests are still present in repo for rule validation.
