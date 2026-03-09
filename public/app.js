@@ -7,45 +7,70 @@ const identityEl = document.getElementById('identity');
 const joinErrorEl = document.getElementById('join-error');
 const seatsEl = document.getElementById('seats');
 
+function playerIndexFromName(name) {
+  return name === 'Walter' ? 0 : name === 'Dad' ? 1 : null;
+}
+
+async function api(path, body) {
+  const resp = await fetch(path, {
+    method: body ? 'POST' : 'GET',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
 document.querySelectorAll('[data-name]').forEach((button) => {
   button.addEventListener('click', async () => {
-    const name = button.dataset.name;
-    const resp = await fetch('/api/join', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
-    });
-
-    const data = await resp.json();
-    if (!resp.ok) {
-      joinErrorEl.textContent = data.error || 'Could not join';
-      return;
+    try {
+      const name = button.dataset.name;
+      state = await api('/api/join', { name });
+      myPlayer = name;
+      identityEl.textContent = `You are ${name}.`;
+      joinErrorEl.textContent = '';
+      render();
+    } catch (err) {
+      joinErrorEl.textContent = err.message;
     }
-
-    myPlayer = name;
-    identityEl.textContent = `You are ${name}.`;
-    joinErrorEl.textContent = '';
-    state = data;
-    render();
   });
 });
 
 document.getElementById('reset-btn').addEventListener('click', async () => {
-  await fetch('/api/reset', { method: 'POST' });
-  await refreshState();
+  try {
+    state = await api('/api/reset', {});
+    render();
+  } catch (err) {
+    joinErrorEl.textContent = err.message;
+  }
 });
 
-async function refreshState() {
-  const resp = await fetch('/api/state');
-  state = await resp.json();
-  render();
+function connectStream() {
+  const events = new EventSource('/api/stream');
+  events.onmessage = (event) => {
+    state = JSON.parse(event.data);
+    render();
+  };
+  events.onerror = async () => {
+    events.close();
+    setTimeout(connectStream, 1000);
+    try {
+      state = await api('/api/state');
+      render();
+    } catch {
+      // ignore while reconnecting
+    }
+  };
 }
 
-setInterval(refreshState, 1000);
-refreshState();
-
-function playerIndexFromName(name) {
-  return name === 'Walter' ? 0 : name === 'Dad' ? 1 : null;
+async function loadInitialState() {
+  try {
+    state = await api('/api/state');
+    render();
+  } catch (err) {
+    joinErrorEl.textContent = err.message;
+  }
 }
 
 function render() {
@@ -94,12 +119,12 @@ function makePit(index, col, row) {
   if (playable) {
     el.classList.add('playable');
     el.addEventListener('click', async () => {
-      await fetch('/api/move', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerName: myPlayer, pitIndex: index })
-      });
-      await refreshState();
+      try {
+        state = await api('/api/move', { playerName: myPlayer, pitIndex: index });
+        render();
+      } catch (err) {
+        joinErrorEl.textContent = err.message;
+      }
     });
   }
 
@@ -108,3 +133,6 @@ function makePit(index, col, row) {
 
   return el;
 }
+
+loadInitialState();
+connectStream();

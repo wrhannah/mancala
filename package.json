@@ -1,7 +1,7 @@
 {
   "name": "mancala-family",
-  "version": "1.0.0",
-  "description": "Two-player Mancala for Walter and Dad",
+  "version": "1.2.0",
+  "description": "Two-player Mancala for Walter and Dad (Node server + SSE)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

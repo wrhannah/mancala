@@ -8,6 +8,7 @@ const ALLOWED_NAMES = ['Walter', 'Dad'];
 const nameToIndex = { Walter: 0, Dad: 1 };
 
 let gameState = createGameState();
+const clients = new Set();
 
 function sendJson(res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json' });
@@ -68,7 +69,26 @@ function publicState() {
   };
 }
 
+function broadcastState() {
+  const payload = `data: ${JSON.stringify(publicState())}\n\n`;
+  for (const client of clients) {
+    client.write(payload);
+  }
+}
+
 const server = http.createServer(async (req, res) => {
+  if (req.method === 'GET' && req.url === '/api/stream') {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive'
+    });
+    res.write(`data: ${JSON.stringify(publicState())}\n\n`);
+    clients.add(res);
+    req.on('close', () => clients.delete(res));
+    return;
+  }
+
   if (req.method === 'GET' && (req.url === '/' || req.url.startsWith('/styles.css') || req.url.startsWith('/app.js'))) {
     serveStatic(req, res);
     return;
@@ -90,7 +110,9 @@ const server = http.createServer(async (req, res) => {
 
       const idx = nameToIndex[name];
       gameState.players[idx] = { name };
-      sendJson(res, 200, publicState());
+      const state = publicState();
+      broadcastState();
+      sendJson(res, 200, state);
     } catch {
       sendJson(res, 400, { error: 'Bad JSON' });
     }
@@ -118,7 +140,9 @@ const server = http.createServer(async (req, res) => {
       }
 
       gameState = result.state;
-      sendJson(res, 200, publicState());
+      const state = publicState();
+      broadcastState();
+      sendJson(res, 200, state);
     } catch {
       sendJson(res, 400, { error: 'Bad request.' });
     }
@@ -127,7 +151,9 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && req.url === '/api/reset') {
     gameState = createGameState();
-    sendJson(res, 200, publicState());
+    const state = publicState();
+    broadcastState();
+    sendJson(res, 200, state);
     return;
   }
 
