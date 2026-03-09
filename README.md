@@ -1,26 +1,27 @@
 # Walter vs Dad Mancala
 
-Flattened single-folder layout (no `public/` or `test/` directories).
+Cleaned-up, static peer-to-peer version.
 
-## Files in root
+## Files
 
 - `index.html`
 - `style.css`
 - `script.js`
-- `server.js`
-- `game.js`
-- `package.json`
+- `README.md`
 
 ## Run
 
+Use any simple static file server:
+
 ```bash
-npm start
+python3 -m http.server 4173
 ```
 
-Open `http://<your-lan-ip>:3000/` on both phones.
+Then open `http://<your-lan-ip>:4173/` on both phones.
 
-## Notes
+## Connection flow
 
 - No login codes or accounts.
-- First opener becomes Walter host; second becomes Dad joiner (PeerJS flow in `script.js`).
-- Server API is still available for state/join/move/reset and SSE stream.
+- First opener becomes Walter host.
+- Second opener becomes Dad joiner.
+- Devices sync directly via PeerJS.
