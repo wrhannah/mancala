@@ -76,6 +76,7 @@ async function loadInitialState() {
 function render() {
   if (!state) return;
   boardEl.innerHTML = '';
+
   seatsEl.textContent = `Walter seat: ${state.seats[0] ? 'Taken' : 'Open'} | Dad seat: ${state.seats[1] ? 'Taken' : 'Open'}`;
 
   const topRow = [12, 11, 10, 9, 8, 7];
