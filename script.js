@@ -143,13 +143,13 @@ function drawBoard() {
   updateStatus();
 }
 
-function addStonesVisual(container, count) {
+function addStonesVisual(container, count, jumping = false) {
   const stonesWrap = document.createElement('div');
   stonesWrap.className = 'stones';
   const visibleCount = Math.min(count, 12);
   for (let i = 0; i < visibleCount; i += 1) {
     const stone = document.createElement('span');
-    stone.className = 'stone';
+    stone.className = `stone${jumping ? ' jump' : ''}`;
     stone.style.animationDelay = `${i * 25}ms`;
     stonesWrap.appendChild(stone);
   }
@@ -166,9 +166,10 @@ function makeStore(index, label) {
   text.className = 'pit-label';
   text.textContent = `${label}: ${state.board[index]}`;
   el.appendChild(text);
-  addStonesVisual(el, state.board[index]);
+  const isTarget = lastMoveTargets.has(index);
+  addStonesVisual(el, state.board[index], isTarget);
 
-  if (lastMoveTargets.has(index)) el.classList.add('move-target');
+  if (isTarget) el.classList.add('move-target');
   return el;
 }
 
@@ -183,7 +184,8 @@ function makePit(index, col, row) {
   text.className = 'pit-label';
   text.textContent = String(state.board[index]);
   el.appendChild(text);
-  addStonesVisual(el, state.board[index]);
+  const isTarget = lastMoveTargets.has(index);
+  addStonesVisual(el, state.board[index], isTarget);
 
   const mine = myPlayerIndex === 0 ? index <= 5 : myPlayerIndex === 1 ? (index >= 7 && index <= 12) : false;
   const playable = mine && isMyTurn() && state.board[index] > 0;
@@ -200,7 +202,7 @@ function makePit(index, col, row) {
   }
 
   if (lastMoveSource === index) el.classList.add('move-source');
-  if (lastMoveTargets.has(index)) el.classList.add('move-target');
+  if (isTarget) el.classList.add('move-target');
   if (state.currentPlayer === 0 && index <= 5) el.classList.add('active');
   if (state.currentPlayer === 1 && index >= 7 && index <= 12) el.classList.add('active');
   return el;

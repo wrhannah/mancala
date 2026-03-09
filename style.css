@@ -100,6 +100,10 @@ body {
 }
 
 .store { border-radius: 14px; grid-row: 1 / span 2; }
+.stone.jump {
+  animation: stoneDrop 240ms ease both, stoneJump 620ms ease-in-out 120ms 2;
+}
+
 .pit.playable { box-shadow: inset 0 0 0 3px var(--playable); cursor: pointer; }
 .pit.playable:hover { transform: translateY(-2px) scale(1.03); }
 .pit.active { outline: 3px solid var(--active); outline-offset: -2px; }
@@ -128,6 +132,12 @@ body {
 @keyframes stoneDrop {
   from { transform: translateY(-8px) scale(.7); opacity: 0; }
   to { transform: translateY(0) scale(1); opacity: .85; }
+}
+
+@keyframes stoneJump {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-9px) scale(1.08); }
+  60% { transform: translateY(-2px) scale(1.02); }
 }
 
 @keyframes liftOut {
