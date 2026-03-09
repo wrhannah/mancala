@@ -30,14 +30,28 @@ function readBody(req) {
   });
 }
 
-function serveStatic(req, res) {
+function publicState() {
+  return {
+    board: gameState.board,
+    currentPlayer: gameState.currentPlayer,
+    winner: gameState.winner,
+    seats: [gameState.players[0]?.name || null, gameState.players[1]?.name || null]
+  };
+}
+
+function broadcastState() {
+  const payload = `data: ${JSON.stringify(publicState())}\n\n`;
+  for (const client of clients) client.write(payload);
+}
+
+function serveRootStatic(req, res) {
   const file = req.url === '/' ? '/index.html' : req.url;
   const clean = file.replace(/\.\./g, '');
-  const filePath = path.join(__dirname, 'public', clean);
-
-  if (!filePath.startsWith(path.join(__dirname, 'public'))) {
-    res.writeHead(403);
-    res.end('Forbidden');
+  const filePath = path.join(__dirname, clean);
+  const allowed = ['/index.html', '/style.css', '/script.js'];
+  if (!allowed.includes(clean)) {
+    res.writeHead(404);
+    res.end('Not found');
     return;
   }
 
@@ -54,26 +68,9 @@ function serveStatic(req, res) {
       '.css': 'text/css; charset=utf-8',
       '.js': 'application/javascript; charset=utf-8'
     };
-
     res.writeHead(200, { 'Content-Type': types[ext] || 'text/plain; charset=utf-8' });
     res.end(data);
   });
-}
-
-function publicState() {
-  return {
-    board: gameState.board,
-    currentPlayer: gameState.currentPlayer,
-    winner: gameState.winner,
-    seats: [gameState.players[0]?.name || null, gameState.players[1]?.name || null]
-  };
-}
-
-function broadcastState() {
-  const payload = `data: ${JSON.stringify(publicState())}\n\n`;
-  for (const client of clients) {
-    client.write(payload);
-  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -89,8 +86,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'GET' && (req.url === '/' || req.url.startsWith('/styles.css') || req.url.startsWith('/app.js'))) {
-    serveStatic(req, res);
+  if ((req.method === 'GET' || req.method === 'HEAD') && (req.url === '/' || req.url === '/style.css' || req.url === '/script.js')) {
+    serveRootStatic(req, res);
     return;
   }
 
@@ -102,14 +99,11 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/api/join') {
     try {
       const body = await readBody(req);
-      const name = body.name;
-      if (!ALLOWED_NAMES.includes(name)) {
+      if (!ALLOWED_NAMES.includes(body.name)) {
         sendJson(res, 400, { error: 'Please choose Walter or Dad.' });
         return;
       }
-
-      const idx = nameToIndex[name];
-      gameState.players[idx] = { name };
+      gameState.players[nameToIndex[body.name]] = { name: body.name };
       const state = publicState();
       broadcastState();
       sendJson(res, 200, state);
@@ -122,8 +116,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/api/move') {
     try {
       const body = await readBody(req);
-      const { playerName, pitIndex } = body;
-      const playerIndex = nameToIndex[playerName];
+      const playerIndex = nameToIndex[body.playerName];
       if (typeof playerIndex !== 'number') {
         sendJson(res, 400, { error: 'Invalid player.' });
         return;
@@ -133,7 +126,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const result = applyMove(gameState, Number(pitIndex));
+      const result = applyMove(gameState, Number(body.pitIndex));
       if (!result.valid) {
         sendJson(res, 400, { error: 'Invalid move.' });
         return;

@@ -1,23 +1,26 @@
-# Walter vs Dad Mancala (Peer-to-Peer)
+# Walter vs Dad Mancala
 
-This app is rearchitected to match the checkers style you shared:
+Flattened single-folder layout (no `public/` or `test/` directories).
 
-- Static `index.html` + `script.js` + `style.css`
-- PeerJS auto-role assignment with no codes
-  - First opener becomes **Walter** (host)
-  - Second opener becomes **Dad** (joiner)
-- Direct browser-to-browser sync (no Firebase)
+## Files in root
 
-## Run locally
+- `index.html`
+- `style.css`
+- `script.js`
+- `server.js`
+- `game.js`
+- `package.json`
+
+## Run
 
 ```bash
-python3 -m http.server 4173
+npm start
 ```
 
-Open `http://<your-lan-ip>:4173/` on both phones.
+Open `http://<your-lan-ip>:3000/` on both phones.
 
 ## Notes
 
-- No accounts and no login codes.
-- Restart button is available to Dad (same control pattern as the sample).
-- Existing Node game logic/tests are still present in repo for rule validation.
+- No login codes or accounts.
+- First opener becomes Walter host; second becomes Dad joiner (PeerJS flow in `script.js`).
+- Server API is still available for state/join/move/reset and SSE stream.
