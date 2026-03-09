@@ -1,0 +1,160 @@
+:root {
+  --bg: #222;
+  --panel: #2d2d2d;
+  --text: #f4f4f4;
+  --board: #d9c8a4;
+  --pit: #f5ebd4;
+  --active: #66bb6a;
+  --playable: #1976d2;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+
+.game {
+  width: min(96vw, 760px);
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+}
+
+.game-header { text-align: center; }
+.game-header h1 { margin: 0; font-size: clamp(1.2rem, 4vw, 2rem); }
+#status { margin: 6px 0 0; font-size: 0.98rem; font-weight: 600; }
+
+.connection-card {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid #444;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.code-text { margin: 0; text-align: center; font-size: .9rem; color: #d9d9d9; }
+
+.board-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: 82px repeat(6, minmax(48px, 70px)) 82px;
+  grid-template-rows: 72px 72px;
+  gap: 10px;
+  background: var(--board);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.pit,
+.store {
+  border: 0;
+  border-radius: 999px;
+  background: var(--pit);
+  color: #1f2937;
+  font-weight: 700;
+  min-height: 48px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.pit-label {
+  position: relative;
+  z-index: 2;
+  font-size: .85rem;
+}
+
+.stones {
+  position: absolute;
+  inset: 4px;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  pointer-events: none;
+}
+
+.stone {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin: auto;
+  background: radial-gradient(circle at 30% 30%, #fff7cc 0%, #cf9f45 85%);
+  opacity: .85;
+  animation: stoneDrop 300ms ease both;
+}
+
+.store { border-radius: 14px; grid-row: 1 / span 2; }
+.stone.jump {
+  animation: stoneDrop 240ms ease both, stoneJump 620ms ease-in-out 120ms 2;
+}
+
+.pit.playable { box-shadow: inset 0 0 0 3px var(--playable); cursor: pointer; }
+.pit.playable:hover { transform: translateY(-2px) scale(1.03); }
+.pit.active { outline: 3px solid var(--active); outline-offset: -2px; }
+
+.pit.move-source,
+.store.move-source {
+  animation: liftOut 480ms ease;
+}
+
+.pit.move-target,
+.store.move-target {
+  animation: receiveStone 620ms ease;
+}
+
+.restart-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: .95rem;
+  font-weight: 700;
+  background: #1976d2;
+  color: #fff;
+}
+.restart-btn[disabled] { opacity: .5; }
+
+@keyframes stoneDrop {
+  from { transform: translateY(-8px) scale(.7); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: .85; }
+}
+
+@keyframes stoneJump {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-9px) scale(1.08); }
+  60% { transform: translateY(-2px) scale(1.02); }
+}
+
+@keyframes liftOut {
+  0% { transform: scale(1); }
+  40% { transform: translateY(-5px) scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+@keyframes receiveStone {
+  0% { box-shadow: inset 0 0 0 0 rgba(25,118,210,0); }
+  35% { box-shadow: inset 0 0 0 4px rgba(25,118,210,.45); transform: scale(1.04); }
+  100% { box-shadow: inset 0 0 0 0 rgba(25,118,210,0); transform: scale(1); }
+}
+
+@keyframes turnFlash {
+  0%, 100% { background: #222; }
+  25%, 75% { background: #ffef72; }
+  50% { background: #ffffff; }
+}
+body.turn-flash { animation: turnFlash 0.18s linear infinite; }
